@@ -40,7 +40,8 @@ def check_one_date_attempt(day):
         browser = p.chromium.launch(headless=True)
         context = browser.new_context()
         page = context.new_page()
-        page.goto("https://www.brittany-ferries.ie/booking/trip", wait_until="networkidle")
+        page.set_default_timeout(45000)
+        page.goto("https://www.brittany-ferries.ie/booking/trip", wait_until="networkidle", timeout=45000)
 
         page.get_by_role("button", name="Yes, I accept!").click()
         page.get_by_role("radio", name="One way").check()
