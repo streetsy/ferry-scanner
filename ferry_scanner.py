@@ -133,13 +133,6 @@ def main():
         new_state[str(day)] = status
         print(f"[{datetime.now()}] {day} Sept -> {status}")
 
-    # TEMPORARY test block - proves GitHub Actions can reach Telegram
-    for day, month in TEST_DATES:
-        status, shot_path = check_one_date(day, month)
-        print(f"[{datetime.now()}] TEST {day} {month} -> {status}")
-        if status == "AVAILABLE":
-            send_telegram_photo(shot_path,
-                f"\U0001F6A8 TEST from GitHub Actions - {day} {month} shows AVAILABLE. If you see this, cloud alerts work!")
 
         was_available = last_state.get(str(day)) == "AVAILABLE"
         if status == "AVAILABLE" and not was_available:
