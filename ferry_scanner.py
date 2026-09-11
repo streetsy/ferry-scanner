@@ -9,6 +9,7 @@ TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "PUT_YOUR_TOKEN_HERE")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "PUT_YOUR_CHAT_ID_HERE")
 
 TARGET_DAYS = [18, 23, 25]
+TEST_DATES = [(9, "October")]  # TEMPORARY - for confirming GitHub -> Telegram works
 STATE_FILE = "last_known_state.txt"
 MAX_ATTEMPTS = 3
 # ------------------------------------
@@ -35,7 +36,7 @@ def click_add_n_times(counter_locator, n):
     return str(n) in counter_locator.inner_text()
 
 
-def check_one_date_attempt(day):
+def check_one_date_attempt(day, month="September"):
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
         context = browser.new_context()
@@ -48,8 +49,8 @@ def check_one_date_attempt(day):
         page.locator("#mat-select-value-0").click()
         page.locator("span").filter(has_text="Rosslarearrow_right_altBilbao").first.click()
         page.locator(".mat-mdc-form-field.pb-0 > .mat-mdc-text-field-wrapper > .mat-mdc-form-field-flex > .mat-mdc-form-field-infix").click()
-        page.get_by_role("button", name="September").click()
-        page.get_by_role("button", name=f"{day} September 2026", exact=True).click()
+        page.get_by_role("button", name=month).click()
+        page.get_by_role("button", name=f"{day} {month} 2026", exact=True).click()
 
         page.locator("#mat-select-1 > .mat-mdc-select-trigger > .mat-mdc-select-arrow-wrapper").click()
         adults = page.get_by_test_id("adultsPassengers")
@@ -90,11 +91,11 @@ def check_one_date_attempt(day):
             return "UNKNOWN", shot_path
 
 
-def check_one_date(day):
+def check_one_date(day, month="September"):
     last_status, last_shot = "UNKNOWN", None
     for attempt in range(1, MAX_ATTEMPTS + 1):
         try:
-            status, shot = check_one_date_attempt(day)
+            status, shot = check_one_date_attempt(day, month)
             if not status.startswith("UNKNOWN"):
                 return status, shot
             last_status, last_shot = status, shot
@@ -131,6 +132,14 @@ def main():
         status, shot_path = check_one_date(day)
         new_state[str(day)] = status
         print(f"[{datetime.now()}] {day} Sept -> {status}")
+
+    # TEMPORARY test block - proves GitHub Actions can reach Telegram
+    for day, month in TEST_DATES:
+        status, shot_path = check_one_date(day, month)
+        print(f"[{datetime.now()}] TEST {day} {month} -> {status}")
+        if status == "AVAILABLE":
+            send_telegram_photo(shot_path,
+                f"\U0001F6A8 TEST from GitHub Actions - {day} {month} shows AVAILABLE. If you see this, cloud alerts work!")
 
         was_available = last_state.get(str(day)) == "AVAILABLE"
         if status == "AVAILABLE" and not was_available:
