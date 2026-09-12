@@ -52,13 +52,17 @@ def check_one_date_attempt(day, month, browser):
 
     try:
         page.goto("https://www.brittany-ferries.ie/booking/trip", wait_until="domcontentloaded", timeout=30000)
-        # Wait for real translated text, not just raw translation keys
-        # like "booking.trip.oneWay" (which happens when the page's
-        # language file hasn't finished loading yet).
-        page.wait_for_function(
-            "() => !document.body.innerText.includes('booking.trip.oneWay')",
-            timeout=20000
-        )
+
+        # Sometimes the page loads with raw translation keys still showing
+        # (e.g. "booking.trip.oneWay" instead of "One way") - a refresh
+        # usually fixes this. Try up to 3 times.
+        for reload_attempt in range(3):
+            page.wait_for_timeout(2000)
+            if "booking.trip.oneWay" not in page.inner_text("body"):
+                break
+            print(f"  translations stuck, reloading (attempt {reload_attempt + 1})...")
+            page.reload(wait_until="domcontentloaded", timeout=30000)
+
         page.wait_for_selector("text=Yes, I accept!", timeout=15000)
         _run_booking_flow(page, day, month)
     except Exception as e:
