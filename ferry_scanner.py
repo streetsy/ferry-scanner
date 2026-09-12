@@ -15,6 +15,14 @@ MAX_ATTEMPTS = 3
 # ------------------------------------
 
 
+def send_telegram_text(message):
+    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+    try:
+        requests.post(url, data={"chat_id": TELEGRAM_CHAT_ID, "text": message}, timeout=15)
+    except Exception as e:
+        print(f"[WARN] Telegram text send failed: {e}")
+
+
 def send_telegram_photo(path, caption):
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendPhoto"
     try:
@@ -40,9 +48,30 @@ def check_one_date_attempt(day, month, browser):
     context = browser.new_context()
     page = context.new_page()
     page.set_default_timeout(30000)
-    page.goto("https://www.brittany-ferries.ie/booking/trip", wait_until="domcontentloaded", timeout=30000)
-    page.wait_for_selector("text=Yes, I accept!", timeout=15000)
+    shot_path = f"debug_{day}sept.png"
 
+    try:
+        page.goto("https://www.brittany-ferries.ie/booking/trip", wait_until="domcontentloaded", timeout=30000)
+        page.wait_for_selector("text=Yes, I accept!", timeout=15000)
+        _run_booking_flow(page, day, month)
+    except Exception as e:
+        # Always grab a screenshot of wherever it got stuck, so we can
+        # actually see the problem instead of failing silently.
+        try:
+            page.screenshot(path=shot_path, full_page=True)
+        except Exception:
+            pass
+        context.close()
+        return f"UNKNOWN_STEP_FAILED: {e}", shot_path
+
+    page_text = page.inner_text("body").lower().replace("\n", " ")
+    page.screenshot(path=shot_path, full_page=True)
+    context.close()
+
+    return _classify(page_text), shot_path
+
+
+def _run_booking_flow(page, day, month):
     page.get_by_role("button", name="Yes, I accept!").click()
     page.get_by_role("radio", name="One way").check()
     page.locator("#mat-select-value-0").click()
@@ -68,9 +97,9 @@ def check_one_date_attempt(day, month, browser):
 
     page.get_by_test_id("submit").click()
 
-    # Wait specifically for one of the real result markers to appear,
-    # not just a generic label that can render before the actual
-    # availability data has loaded.
+    if not dogs_ok:
+        raise RuntimeError("dog count never reached 2")
+
     try:
         page.wait_for_function(
             """() => {
@@ -83,27 +112,21 @@ def check_one_date_attempt(day, month, browser):
             timeout=20000
         )
     except Exception as e:
-        print(f"[WARN] result marker wait timed out for {day} {month}: {e}")
+        print(f"[WARN] result marker wait timed out: {e}")
 
-    shot_path = f"debug_{day}sept.png"
-    page.screenshot(path=shot_path, full_page=True)
-    page_text = page.inner_text("body").lower().replace("\n", " ")
-    context.close()
 
-    if not dogs_ok:
-        return "UNKNOWN_DOG_COUNT_FAILED", shot_path
-
+def _classify(page_text):
     pet_blocker_markers = ["no pet accommodation"]
     sold_out_markers = ["sailing full", "sold out", "no availability", "fully booked", "not available"]
 
     if any(m in page_text for m in pet_blocker_markers):
-        return "SOLD_OUT_NO_PET_SPACE", shot_path
+        return "SOLD_OUT_NO_PET_SPACE"
     elif any(m in page_text for m in sold_out_markers):
-        return "SOLD_OUT", shot_path
+        return "SOLD_OUT"
     elif "€" in page_text:
-        return "AVAILABLE", shot_path
+        return "AVAILABLE"
     else:
-        return "UNKNOWN", shot_path
+        return "UNKNOWN"
 
 
 def check_one_date(day, month, browser):
@@ -154,8 +177,11 @@ def main():
             if status == "AVAILABLE" and not was_available:
                 send_telegram_photo(shot_path,
                     f"\U0001F6A8 REAL availability found for {day} Sept Rosslare->Bilbao (incl. pet space)! Book now: https://www.brittany-ferries.ie/booking/trip")
-            elif status.startswith("UNKNOWN") and shot_path:
-                send_telegram_photo(shot_path, f"Scanner unsure about {day} Sept ({status}) - please check")
+            elif status.startswith("UNKNOWN"):
+                if shot_path and os.path.exists(shot_path):
+                    send_telegram_photo(shot_path, f"Scanner unsure about {day} Sept ({status}) - please check")
+                else:
+                    send_telegram_text(f"Scanner unsure about {day} Sept ({status}) - no screenshot available")
 
         browser.close()
 
