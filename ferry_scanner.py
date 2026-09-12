@@ -36,66 +36,81 @@ def click_add_n_times(counter_locator, n):
     return str(n) in counter_locator.inner_text()
 
 
-def check_one_date_attempt(day, month="September"):
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
-        context = browser.new_context()
-        page = context.new_page()
-        page.set_default_timeout(45000)
-        page.goto("https://www.brittany-ferries.ie/booking/trip", wait_until="networkidle", timeout=45000)
+def check_one_date_attempt(day, month, browser):
+    context = browser.new_context()
+    page = context.new_page()
+    page.set_default_timeout(30000)
+    page.goto("https://www.brittany-ferries.ie/booking/trip", wait_until="domcontentloaded", timeout=30000)
+    page.wait_for_selector("text=Yes, I accept!", timeout=15000)
 
-        page.get_by_role("button", name="Yes, I accept!").click()
-        page.get_by_role("radio", name="One way").check()
-        page.locator("#mat-select-value-0").click()
-        page.locator("span").filter(has_text="Rosslarearrow_right_altBilbao").first.click()
-        page.locator(".mat-mdc-form-field.pb-0 > .mat-mdc-text-field-wrapper > .mat-mdc-form-field-flex > .mat-mdc-form-field-infix").click()
-        page.get_by_role("button", name=month).click()
-        page.get_by_role("button", name=f"{day} {month} 2026", exact=True).click()
+    page.get_by_role("button", name="Yes, I accept!").click()
+    page.get_by_role("radio", name="One way").check()
+    page.locator("#mat-select-value-0").click()
+    page.locator("span").filter(has_text="Rosslarearrow_right_altBilbao").first.click()
+    page.locator(".mat-mdc-form-field.pb-0 > .mat-mdc-text-field-wrapper > .mat-mdc-form-field-flex > .mat-mdc-form-field-infix").click()
+    page.get_by_role("button", name=month).click()
+    page.get_by_role("button", name=f"{day} {month} 2026", exact=True).click()
 
-        page.locator("#mat-select-1 > .mat-mdc-select-trigger > .mat-mdc-select-arrow-wrapper").click()
-        adults = page.get_by_test_id("adultsPassengers")
-        click_add_n_times(adults, 2)
-        page.get_by_test_id("selectWrapper").get_by_test_id("submit").click()
+    page.locator("#mat-select-1 > .mat-mdc-select-trigger > .mat-mdc-select-arrow-wrapper").click()
+    adults = page.get_by_test_id("adultsPassengers")
+    click_add_n_times(adults, 2)
+    page.get_by_test_id("selectWrapper").get_by_test_id("submit").click()
 
-        page.locator("#mat-select-4 > .mat-mdc-select-trigger > .mat-mdc-select-arrow-wrapper").click()
-        page.locator("span").filter(has_text="Minibus/Motorhome").first.click()
-        page.locator(".mat-mdc-checkbox-touch-target").first.click()
-        page.get_by_test_id("vehicleDetailsSubmit").click()
+    page.locator("#mat-select-4 > .mat-mdc-select-trigger > .mat-mdc-select-arrow-wrapper").click()
+    page.locator("span").filter(has_text="Minibus/Motorhome").first.click()
+    page.locator(".mat-mdc-checkbox-touch-target").first.click()
+    page.get_by_test_id("vehicleDetailsSubmit").click()
 
-        page.locator("#mat-select-6 > .mat-mdc-select-trigger > .mat-mdc-select-arrow-wrapper").click()
-        dogs = page.get_by_test_id("smallDogs")
-        dogs_ok = click_add_n_times(dogs, 2)
-        page.get_by_test_id("selectWrapper").get_by_test_id("submit").click()
+    page.locator("#mat-select-6 > .mat-mdc-select-trigger > .mat-mdc-select-arrow-wrapper").click()
+    dogs = page.get_by_test_id("smallDogs")
+    dogs_ok = click_add_n_times(dogs, 2)
+    page.get_by_test_id("selectWrapper").get_by_test_id("submit").click()
 
-        page.get_by_test_id("submit").click()
-        page.wait_for_timeout(4000)
+    page.get_by_test_id("submit").click()
 
-        shot_path = f"debug_{day}sept.png"
-        page.screenshot(path=shot_path, full_page=True)
-        page_text = page.inner_text("body").lower().replace("\n", " ")
-        browser.close()
+    # Wait specifically for one of the real result markers to appear,
+    # not just a generic label that can render before the actual
+    # availability data has loaded.
+    try:
+        page.wait_for_function(
+            """() => {
+                const t = document.body.innerText.toLowerCase();
+                return t.includes('sailing full') || t.includes('no pet accommodation') ||
+                       t.includes('sold out') || t.includes('no availability') ||
+                       t.includes('fully booked') || t.includes('not available') ||
+                       t.includes('€');
+            }""",
+            timeout=20000
+        )
+    except Exception as e:
+        print(f"[WARN] result marker wait timed out for {day} {month}: {e}")
 
-        if not dogs_ok:
-            return "UNKNOWN_DOG_COUNT_FAILED", shot_path
+    shot_path = f"debug_{day}sept.png"
+    page.screenshot(path=shot_path, full_page=True)
+    page_text = page.inner_text("body").lower().replace("\n", " ")
+    context.close()
 
-        pet_blocker_markers = ["no pet accommodation"]
-        sold_out_markers = ["sailing full", "sold out", "no availability", "fully booked", "not available"]
+    if not dogs_ok:
+        return "UNKNOWN_DOG_COUNT_FAILED", shot_path
 
-        if any(m in page_text for m in pet_blocker_markers):
-            return "SOLD_OUT_NO_PET_SPACE", shot_path
-        elif any(m in page_text for m in sold_out_markers):
-            return "SOLD_OUT", shot_path
-        elif "€" in page_text:
-            return "AVAILABLE", shot_path
-        else:
-            return "UNKNOWN", shot_path
+    pet_blocker_markers = ["no pet accommodation"]
+    sold_out_markers = ["sailing full", "sold out", "no availability", "fully booked", "not available"]
+
+    if any(m in page_text for m in pet_blocker_markers):
+        return "SOLD_OUT_NO_PET_SPACE", shot_path
+    elif any(m in page_text for m in sold_out_markers):
+        return "SOLD_OUT", shot_path
+    elif "€" in page_text:
+        return "AVAILABLE", shot_path
+    else:
+        return "UNKNOWN", shot_path
 
 
-def check_one_date(day, month="September"):
+def check_one_date(day, month, browser):
     last_status, last_shot = "UNKNOWN", None
     for attempt in range(1, MAX_ATTEMPTS + 1):
         try:
-            status, shot = check_one_date_attempt(day, month)
+            status, shot = check_one_date_attempt(day, month, browser)
             if not status.startswith("UNKNOWN"):
                 return status, shot
             last_status, last_shot = status, shot
@@ -128,18 +143,21 @@ def main():
     last_state = load_state()
     new_state = {}
 
-    for day in TARGET_DAYS:
-        status, shot_path = check_one_date(day)
-        new_state[str(day)] = status
-        print(f"[{datetime.now()}] {day} Sept -> {status}")
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        for day in TARGET_DAYS:
+            status, shot_path = check_one_date(day, "September", browser)
+            new_state[str(day)] = status
+            print(f"[{datetime.now()}] {day} Sept -> {status}")
 
+            was_available = last_state.get(str(day)) == "AVAILABLE"
+            if status == "AVAILABLE" and not was_available:
+                send_telegram_photo(shot_path,
+                    f"\U0001F6A8 REAL availability found for {day} Sept Rosslare->Bilbao (incl. pet space)! Book now: https://www.brittany-ferries.ie/booking/trip")
+            elif status.startswith("UNKNOWN") and shot_path:
+                send_telegram_photo(shot_path, f"Scanner unsure about {day} Sept ({status}) - please check")
 
-        was_available = last_state.get(str(day)) == "AVAILABLE"
-        if status == "AVAILABLE" and not was_available:
-            send_telegram_photo(shot_path,
-                f"\U0001F6A8 REAL availability found for {day} Sept Rosslare->Bilbao (incl. pet space)! Book now: https://www.brittany-ferries.ie/booking/trip")
-        elif status.startswith("UNKNOWN") and shot_path:
-            send_telegram_photo(shot_path, f"Scanner unsure about {day} Sept ({status}) - please check")
+        browser.close()
 
     save_state(new_state)
 
