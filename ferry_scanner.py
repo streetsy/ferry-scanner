@@ -52,6 +52,13 @@ def check_one_date_attempt(day, month, browser):
 
     try:
         page.goto("https://www.brittany-ferries.ie/booking/trip", wait_until="domcontentloaded", timeout=30000)
+        # Wait for real translated text, not just raw translation keys
+        # like "booking.trip.oneWay" (which happens when the page's
+        # language file hasn't finished loading yet).
+        page.wait_for_function(
+            "() => !document.body.innerText.includes('booking.trip.oneWay')",
+            timeout=20000
+        )
         page.wait_for_selector("text=Yes, I accept!", timeout=15000)
         _run_booking_flow(page, day, month)
     except Exception as e:
