@@ -125,6 +125,22 @@ def _run_booking_flow(page, day, month):
     except Exception as e:
         print(f"[WARN] result marker wait timed out: {e}")
 
+    # The price can appear slightly before the pet-availability check
+    # finishes loading. Give it a moment, then specifically wait a bit
+    # longer for the pet warning IF a price is showing but no warning
+    # has appeared yet - avoids a false "AVAILABLE" for a date that
+    # actually has no room for the dogs.
+    page.wait_for_timeout(1500)
+    text_now = page.inner_text("body").lower()
+    if "€" in text_now and "no pet accommodation" not in text_now:
+        try:
+            page.wait_for_function(
+                "() => document.body.innerText.toLowerCase().includes('no pet accommodation')",
+                timeout=6000
+            )
+        except Exception:
+            pass  # genuinely no warning appeared - price + pets is real
+
 
 def _classify(page_text):
     pet_blocker_markers = ["no pet accommodation"]
