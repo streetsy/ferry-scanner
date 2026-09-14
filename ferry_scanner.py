@@ -8,7 +8,7 @@ from playwright.sync_api import sync_playwright
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "PUT_YOUR_TOKEN_HERE")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "PUT_YOUR_CHAT_ID_HERE")
 
-TARGET_DAYS = [16, 18, 23, 25]
+TARGET_DAYS = [18, 23, 25]
 TEST_DATES = [(9, "October")]  # TEMPORARY - for confirming GitHub -> Telegram works
 STATE_FILE = "last_known_state.txt"
 MAX_ATTEMPTS = 3
