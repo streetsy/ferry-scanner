@@ -2,11 +2,11 @@
 Call log:
 waiting for locator("span").filter(has_text="Rosslarearrow_right_altBilbao").first
 
-23=UNKNOWN_STEP_FAILED: Locator.click: Timeout 30000ms exceeded.
+23=UNKNOWN_STEP_FAILED: Locator.check: Timeout 30000ms exceeded.
 Call log:
-waiting for locator("span").filter(has_text="Rosslarearrow_right_altBilbao").first
+waiting for get_by_role("radio", name="One way")
 
-25=UNKNOWN_STEP_FAILED: Locator.click: Timeout 30000ms exceeded.
+25=UNKNOWN_STEP_FAILED: Locator.check: Timeout 30000ms exceeded.
 Call log:
-waiting for locator("span").filter(has_text="Rosslarearrow_right_altBilbao").first
+waiting for get_by_role("radio", name="One way")
 
