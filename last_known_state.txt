@@ -6,4 +6,7 @@ waiting for locator("span").filter(has_text="Rosslarearrow_right_altBilbao").fir
 Call log:
 waiting for locator("span").filter(has_text="Rosslarearrow_right_altBilbao").first
 
-25=UNKNOWN
+25=UNKNOWN_STEP_FAILED: Locator.click: Timeout 30000ms exceeded.
+Call log:
+waiting for locator("span").filter(has_text="Rosslarearrow_right_altBilbao").first
+
