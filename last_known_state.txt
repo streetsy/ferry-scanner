@@ -251,7 +251,4 @@ waiting for get_by_role("button", name="23 September 2026", exact=True)
   - retrying click action, attempt #62
   -   waiting 500ms
 
-25=UNKNOWN_STEP_FAILED: Locator.click: Timeout 30000ms exceeded.
-Call log:
-waiting for locator("span").filter(has_text="Rosslarearrow_right_altBilbao").first
-
+25=AVAILABLE
