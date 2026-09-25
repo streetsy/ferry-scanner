@@ -251,4 +251,4 @@ waiting for get_by_role("button", name="23 September 2026", exact=True)
   - retrying click action, attempt #62
   -   waiting 500ms
 
-25=SOLD_OUT_NO_PET_SPACE
+25=AVAILABLE
